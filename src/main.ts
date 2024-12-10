@@ -78,18 +78,17 @@ export default class ImageUploader extends Plugin {
     }
 
     let clipboardData = ev.clipboardData?.files[0];
-    const imageType = /image.*/;
-    if (clipboardData && clipboardData.type.match(imageType)) {
+    if (clipboardData) {
       let file: File = clipboardData!;
       ev.preventDefault();
 
       // set the placeholder text
       const randomString = (Math.random() * 10086).toString(36).substring(0, 8);
-      const pastePlaceText = `![uploading...](${randomString})\n`
+      const pastePlaceText = `[uploading...](${randomString})\n`
       editor.replaceSelection(pastePlaceText)
 
-      // resize the image
-      if (this.settings.enableResize) {
+      // resize the image if it's an image file and resize is enabled
+      if (this.settings.enableResize && file.type.startsWith('image/')) {
         const maxWidth = this.settings.maxWidth
         const compressedFile = await new Promise((resolve, reject) => {
           new Compressor(file, {
@@ -102,10 +101,10 @@ export default class ImageUploader extends Plugin {
       }
 
       this.uploadImage(file).then(url => {
-        const imgMarkdownText = `![](${url})`
-        this.replaceText(editor, pastePlaceText, imgMarkdownText)
+        const markdownText = file.type.startsWith('image/') ? `![](${url})` : `[${file.name}](${url})`
+        this.replaceText(editor, pastePlaceText, markdownText)
       }, err => {
-        new Notice('[Image Uploader] Upload unsuccessfully, fall back to default paste!', 5000)
+        new Notice('[File Uploader] Upload unsuccessfully, fall back to default paste!', 5000)
         console.log(err)
         this.replaceText(editor, pastePlaceText, "");
         mkView.currentMode.clipboardManager.handlePaste(
@@ -183,7 +182,7 @@ export default class ImageUploader extends Plugin {
       for (const targetImage of targetImages) {
         const data = await this.app.vault.adapter.readBinary(normalizePath(targetImage.path));
         const blob = new Blob([data]);
-        const file = new File([blob], targetImage.name, { type: 'image/png' });
+        const file = new File([blob], targetImage.name);
 
         this.uploadImage(file).then(url => {
           const imgMarkdownText = `![](${url})`
@@ -199,21 +198,6 @@ export default class ImageUploader extends Plugin {
           console.log(err)
         })
       }
-
-
-      // const data = await this.app.vault.adapter.readBinary(imagePath);
-      // const blob = new Blob([data]);
-      // const file = new File([blob], imageName, { type: 'image/png' });
-
-      // this.uploadImage(file).then(url => {
-      //   const imgMarkdownText = `![](${url})`
-      //   this.replaceText(editor, imageLink, imgMarkdownText)
-      // }, err => {
-      //   new Notice('[Image Uploader] Upload unsuccessfully, fall back to default paste!', 5000)
-      //   console.log(err)
-
-      // })
-
     }
   }
 
